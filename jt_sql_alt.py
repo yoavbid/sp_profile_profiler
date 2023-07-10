@@ -10,18 +10,13 @@ __location__ = os.path.realpath(
 
 
 def get_conn():
-    try:
-        with open(os.path.join(__location__, 'snowflake_user_pwd'), 'r') as f:
-            user_password = f.read()
-        user = user_password.split('\n')[0]
-        password = user_password.split('\n')[1]
-    except FileNotFoundError:
-        user = os.environ['SNOWFLAKE_USER']
-        password = os.environ['SNOWFLAKE_PASSWORD']
+    user = os.environ['SNOWFLAKE_USER']
+    password = os.environ['SNOWFLAKE_PASSWORD']
 
     conn = snowflake.connector.connect(user=user, password=password,
-                                       account='bua07785.us-east-1', database='analytics', schema='public',
-                                       warehouse='AGGREGATION_PIPELINE')
+                                    account='bua07785.us-east-1', database='analytics', schema='public',
+                                    warehouse='AGGREGATION_PIPELINE')
+        
     return conn
 
 

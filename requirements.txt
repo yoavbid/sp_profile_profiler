@@ -4,3 +4,4 @@ openai==0.27.7
 snowflake==0.0.3
 snowflake-connector-python==2.7.8
 pandas==1.4.4
+pyarrow==6.0.1
