@@ -49,9 +49,9 @@ def save_summarized_log(profile_events_df, out_path, names_dict_path):
     
     events_df = profile_events_df
     
-    events_df['date'] = events_df['EVENT_TIMESTAMP'].apply(lambda x: x.split('.')[0].split(' ')[0])
+    events_df['date'] = events_df['EVENT_TIMESTAMP'].apply(lambda x: str(x).split('.')[0].split(' ')[0])
     events_df['date_formatted'] = events_df['date'].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").strftime(SUMMARY_DATETIME_FORMAT))
-    events_df['time'] = events_df['EVENT_TIMESTAMP'].apply(lambda x: datetime.strptime(x.split('.')[0], SQL_DATETIME_FORMAT))
+    events_df['time'] = events_df['EVENT_TIMESTAMP'].apply(lambda x: datetime.strptime(str(x).split('.')[0], SQL_DATETIME_FORMAT))
     events_df['course_name'] = events_df.apply(lambda x: get_course_name(x, names_dict), axis=1)
     events_df['song_name'] = events_df.apply(lambda x: get_library_song_name(x, names_dict), axis=1)
     
@@ -136,7 +136,7 @@ def get_profile_info(profile_id, queries_path, sql_conn):
     return profile_info
 
 
-def summarize_profile_activity(summarized_log_path, profile_info, prompt_path):
+def summarize_profile_activity(log_summary, profile_info, prompt_path):
     print('Running summarization...\n')
     
     with open(prompt_path, "r") as f:
@@ -153,7 +153,7 @@ def summarize_profile_activity(summarized_log_path, profile_info, prompt_path):
 
     chain = LLMChain(llm=chat, prompt=chat_prompt)
 
-    summarized_activity = chain.run(log=open(summarized_log_path, "r").read(), current_date=current_date, profile_info=profile_info)
+    summarized_activity = chain.run(log=log_summary, current_date=current_date, profile_info=profile_info)
 
     return summarized_activity
 
