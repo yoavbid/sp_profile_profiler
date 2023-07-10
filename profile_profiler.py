@@ -161,6 +161,8 @@ def get_summary(profile_id, summarized_log_path, events_log_path, names_dict_pat
     profile_info = get_profile_info(profile_id, queries_path, sql_conn)
     print('Profile info:\n', json.dumps(profile_info, indent=4), '\n')
     
+    return str(profile_info)
+    
     profile_events_df = save_profile_events(profile_info, queries_path, sql_conn)
     
     log_summary = save_summarized_log(profile_events_df, summarized_log_path, names_dict_path)
