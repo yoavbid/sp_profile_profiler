@@ -153,6 +153,8 @@ def summarize_profile_activity(log_summary, profile_info, prompt_path):
 
     chain = LLMChain(llm=chat, prompt=chat_prompt)
 
+    return "kajdkljaskldas"
+
     summarized_activity = chain.run(log=log_summary, current_date=current_date, profile_info=profile_info)
 
     return summarized_activity
@@ -164,8 +166,6 @@ def get_summary(profile_id, summarized_log_path, events_log_path, names_dict_pat
     profile_events_df = save_profile_events(profile_info, queries_path, sql_conn)
     
     log_summary = save_summarized_log(profile_events_df, summarized_log_path, names_dict_path)
-    
-    return log_summary
     
     summary = summarize_profile_activity(log_summary, profile_info, prompt_path)
     
