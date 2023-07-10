@@ -153,9 +153,9 @@ def summarize_profile_activity(log_summary, profile_info, prompt_path):
 
     chain = LLMChain(llm=chat, prompt=chat_prompt)
 
-    return "kajdkljaskldas"
-
     summarized_activity = chain.run(log=log_summary, current_date=current_date, profile_info=profile_info)
+    
+    return 'ahsdjksahdjkhsd'
 
     return summarized_activity
 
