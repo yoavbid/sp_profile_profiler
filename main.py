@@ -11,15 +11,11 @@ from jt_sql_alt import execute_query, get_conn
 PROMPT_PATH = "prompt.txt"
 
 def submit_profile_id():
-    print('@@ get summary')
-    
     st.session_state['profile_summary'] = get_summary(st.session_state['profile_id'], Path('summarized_log.txt'), 
                                                       Path('events.txt'), 'dlc_names_dict.json', Path('.'), PROMPT_PATH,
                                                       st.session_state['sql_conn'])
   
 def main():
-  print('@@ running app')
-    
   # set API key in two ways to support both local and remote execution
   os.environ['SNOWFLAKE_USER'] = st.secrets["SNOWFLAKE_USER"]
   os.environ['SNOWFLAKE_PASSWORD'] = st.secrets["SNOWFLAKE_PASSWORD"]
@@ -27,8 +23,6 @@ def main():
   openai.api_key = st.secrets["api_secret"]
   
   if 'sql_conn' not in st.session_state:
-    
-    print('@@ get sql conn')
     st.session_state['sql_conn'] = get_conn()
 
   st.set_page_config(layout="wide")
