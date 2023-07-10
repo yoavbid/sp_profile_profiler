@@ -8,7 +8,6 @@ REQUIRED_CODE_FILES = [
 def update_from_original_repo():
     streamlit_path = Path(__file__).parent
     tutor_path = streamlit_path.parent / "simply_tutor"
-    sg_recog_path = tutor_path.parent / "sg_recog"
     
     shutil.copy(tutor_path / "queries" / "get_profile_info.sql", streamlit_path)
     shutil.copy(tutor_path / "queries" / "get_profile_session_events.sql", streamlit_path)

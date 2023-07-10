@@ -1,4 +1,3 @@
-from sg_recog.src.jt_sql.jt_sql_alt import execute_query, get_conn
 from string import Template
 import json
 from datetime import datetime
@@ -15,6 +14,14 @@ MODEL = 'gpt-4-0613'
 SQL_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 SUMMARY_DATETIME_FORMAT = "%b %d, %Y"
 
+def execute_query(query, conn):
+    cursor = conn.cursor()
+    cursor.execute(query)
+    df = cursor.fetch_pandas_all()
+    cursor.close()
+    return df
+
+
 def get_library_song_name(sp_event, names_dict):
     return names_dict.get(sp_event['ITEM_NAME'], None)
 
@@ -23,9 +30,8 @@ def get_course_name(sp_event, names_dict):
     return names_dict.get(sp_event['COURSE_CONTEXT'], None)
 
 
-def save_profile_events(profile_info, results_path, queries_path):
+def save_profile_events(profile_info, results_path, queries_path, sql_conn):
     print ('Running profile events query - this might take a while...\n')
-    sql_conn = get_conn()
     
     profile_log_query = open(queries_path / "get_profile_session_events.sql", "r").read()
 
@@ -109,8 +115,7 @@ def save_summarized_log(events_path, out_path, names_dict_path):
         out.writelines([("%d days have passed since the last session" % (datetime.now() - datetime.strptime(sessions_df.iloc[-1]['date'], "%Y-%m-%d")).days) + '\n'])
             
 
-def get_profile_info(profile_id, queries_path):
-    sql_conn = get_conn()
+def get_profile_info(profile_id, queries_path, sql_conn):
     
     profile_info_query = open(queries_path / "get_profile_info.sql", "r").read()
     query = Template(profile_info_query).substitute(
@@ -149,12 +154,12 @@ def summarize_profile_activity(summarized_log_path, profile_info, prompt_path):
 
     return summarized_activity
 
-def get_summary(profile_id, summarized_log_path, events_log_path, names_dict_path, queries_path, prompt_path):
-    profile_info = get_profile_info(profile_id, queries_path)
+def get_summary(profile_id, summarized_log_path, events_log_path, names_dict_path, queries_path, prompt_path, sql_conn):
+    profile_info = get_profile_info(profile_id, queries_path, sql_conn)
     print('Profile info:\n', json.dumps(profile_info, indent=4), '\n')
     
     if not events_log_path.exists():
-        save_profile_events(profile_info, events_log_path, queries_path)
+        save_profile_events(profile_info, events_log_path, queries_path, sql_conn)
     
     save_summarized_log(events_log_path, summarized_log_path, names_dict_path)
     
