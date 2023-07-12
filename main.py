@@ -31,7 +31,6 @@ def submit_general_id():
             
         query = "SELECT PROFILE_ID, PROFILE_AGE, PROFILE_GENDER, PROFILE_CREATION_TIME, LAST_EVENT_TS FROM CORE_SP_PROFILES WHERE %s = '%s'" % (column_name, id)
         st.session_state['possible_profiles'] = execute_query(query, st.session_state['sql_conn'])
-        print(st.session_state['possible_profiles'])
         
   
 def main():

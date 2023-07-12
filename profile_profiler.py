@@ -25,12 +25,16 @@ def execute_query(query, conn):
 def get_library_song_name(sp_event, names_dict):
     return names_dict.get(sp_event['ITEM_NAME'], None)
 
-    
+
 def get_course_name(sp_event, names_dict):
     return names_dict.get(sp_event['COURSE_CONTEXT'], None)
 
+    
+def get_lsm_name(sp_event, names_dict):
+    return names_dict.get(sp_event['ITEM_NAME'], None)
 
-def save_profile_events(profile_info, queries_path, sql_conn):
+
+def get_profile_events(profile_info, queries_path, sql_conn):
     print ('Running profile events query - this might take a while...\n')
     
     profile_log_query = open(queries_path / "get_profile_session_events.sql", "r").read()
@@ -44,16 +48,15 @@ def save_profile_events(profile_info, queries_path, sql_conn):
     
     return profile_events_df
     
-def save_summarized_log(profile_events_df, out_path, names_dict_path):
+def get_summarized_log(events_df, names_dict_path):
     names_dict = json.load(open(names_dict_path, 'r'))
-    
-    events_df = profile_events_df
     
     events_df['date'] = events_df['EVENT_TIMESTAMP'].apply(lambda x: str(x).split('.')[0].split(' ')[0])
     events_df['date_formatted'] = events_df['date'].apply(lambda x: datetime.strptime(x, "%Y-%m-%d").strftime(SUMMARY_DATETIME_FORMAT))
     events_df['time'] = events_df['EVENT_TIMESTAMP'].apply(lambda x: datetime.strptime(str(x).split('.')[0], SQL_DATETIME_FORMAT))
     events_df['course_name'] = events_df.apply(lambda x: get_course_name(x, names_dict), axis=1)
     events_df['song_name'] = events_df.apply(lambda x: get_library_song_name(x, names_dict), axis=1)
+    events_df['lsm_name'] = events_df.apply(lambda x: get_lsm_name(x, names_dict), axis=1)
     
     sessions_df = events_df.groupby('SESSION_ID').agg({'date': ['first'],
                                                        'MINUTES_PLAYED_TOTAL': ['first'],
@@ -76,6 +79,11 @@ def save_summarized_log(profile_events_df, out_path, names_dict_path):
                                             (events_df['ITEM_TYPE'] == 'library_song')]
         played_library_songs = library_song_events['song_name'].unique()
         played_library_songs = [song for song in played_library_songs if song is not None]
+        
+        lsm_song_events = events_df.loc[(events_df['SESSION_ID'] == session['SESSION_ID']) &
+                                        (events_df['ITEM_TYPE'] == 'lsm_item')]
+        played_lsm_songs = lsm_song_events['lsm_name'].unique()
+        played_lsm_songs = [song for song in played_lsm_songs if song is not None]
             
         session_summary[session['SESSION_ID']] = {'minutes_played_total': session['MINUTES_PLAYED_TOTAL'],
                                                   'minutes_played_level': session['MINUTES_PLAYED_LEVEL'] + session['MINUTES_PLAYED_STARLEVEL'],
@@ -83,14 +91,14 @@ def save_summarized_log(profile_events_df, out_path, names_dict_path):
                                                   'minutes_played_lsm': session['MINUTES_PLAYED_LSM'],
                                                   'courses_played': played_courses,
                                                   'library_songs_played': played_library_songs,
+                                                  'lsm_songs_played': played_lsm_songs,
                                                   'date': datetime.strptime(session['date'], "%Y-%m-%d").strftime(SUMMARY_DATETIME_FORMAT)}
 
+    summary = ""
     prev_session_date = None
     
-    summary = ""
-    
     for _, session in session_summary.items():
-        summary += session['date'] + ': '
+        summary = session['date'] + ': '
         
         if prev_session_date is not None:
             summary += '%d days from previous session, ' % (datetime.strptime(session['date'], SUMMARY_DATETIME_FORMAT) - 
@@ -105,9 +113,9 @@ def save_summarized_log(profile_events_df, out_path, names_dict_path):
             summary += '%.01f minutes spent in library songs: ' % session['minutes_played_library']
             summary += ', '.join(session['library_songs_played']) + '\n'
             
-        # uncomment this when bug in DB table is fixed. It currently counts GSM as LSM
-        # if session['minutes_played_lsm'] > 0:
-        #     summary += '%.01f minutes time spent in Play\n' % session['minutes_played_lsm']
+        if session['minutes_played_lsm'] > 0:
+            summary += '%.01f minutes time spent in Sheet Music (Play or in course): ' % session['minutes_played_lsm']
+            summary += ', '.join(session['lsm_songs_played']) + '\n'
             
         summary += '\n'
         
@@ -136,7 +144,7 @@ def get_profile_info(profile_id, queries_path, sql_conn):
     return profile_info
 
 
-def summarize_profile_activity(log_summary, profile_info, prompt_path):
+def summarize_profile_activity(summarized_log, profile_info, prompt_path):
     print('Running summarization...\n')
     
     with open(prompt_path, "r") as f:
@@ -153,18 +161,28 @@ def summarize_profile_activity(log_summary, profile_info, prompt_path):
 
     chain = LLMChain(llm=chat, prompt=chat_prompt)
 
-    summarized_activity = chain.run(log=log_summary, current_date=current_date, profile_info=profile_info)
+    summarized_activity = chain.run(log=summarized_log, current_date=current_date, profile_info=profile_info)
 
     return summarized_activity
 
-def get_summary(profile_id, summarized_log_path, events_log_path, names_dict_path, queries_path, prompt_path, sql_conn):
+def get_summary(profile_id, summarized_log_path, events_log_path, names_dict_path, 
+                queries_path, prompt_path, sql_conn, force_query=False, save_files=True):
     profile_info = get_profile_info(profile_id, queries_path, sql_conn)
     print('Profile info:\n', json.dumps(profile_info, indent=4), '\n')
     
-    profile_events_df = save_profile_events(profile_info, queries_path, sql_conn)
+    if not events_log_path.exists() or force_query:
+        profile_events_df = get_profile_events(profile_info, queries_path, sql_conn)
+        if save_files:
+            profile_events_df.to_csv(events_log_path, index=False)
+    else:
+        profile_events_df = pd.read_csv(events_log_path)
     
-    log_summary = save_summarized_log(profile_events_df, summarized_log_path, names_dict_path)
+    summarized_log = get_summarized_log(profile_events_df, names_dict_path)
     
-    summary = summarize_profile_activity(log_summary, profile_info, prompt_path)
+    if save_files:
+        with open(summarized_log_path, "w") as f:
+            f.write(summarized_log)
+    
+    summary = summarize_profile_activity(summarized_log, profile_info, prompt_path)
     
     return summary
